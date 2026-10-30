@@ -106,4 +106,45 @@ export class SyncRepository {
       },
     });
   }
+
+
+async buscarPonto(): Promise<number | null> {
+  const cursor = await prisma.syncCursor.findUnique({
+    where: { id: 1 },
+  });
+
+  // null indica que ainda não fizemos a primeira
+  // sincronização com checkpoint.
+  return cursor ? Number(cursor.ponto) : null;
+}
+
+async salvarPonto(ponto: number): Promise<void> {
+  if (!Number.isSafeInteger(ponto) || ponto < 0) {
+    throw new Error("Ponto de sincronização inválido.");
+  }
+
+  await prisma.$transaction(async (tx) => {
+    const atual = await tx.syncCursor.findUnique({
+      where: { id: 1 },
+    });
+
+    if (atual && BigInt(ponto) < atual.ponto) {
+      throw new Error(
+        "O novo ponto é anterior ao ponto armazenado."
+      );
+    }
+
+    await tx.syncCursor.upsert({
+      where: { id: 1 },
+      create: {
+        id: 1,
+        ponto: BigInt(ponto),
+      },
+      update: {
+        ponto: BigInt(ponto),
+      },
+    });
+  });
+}
+
 }

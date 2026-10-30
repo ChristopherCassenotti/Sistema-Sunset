@@ -16,6 +16,10 @@ import {
 import { SyncLockRepository } from
   "../repositories/sync-lock.repository.js";
 
+import {
+  buscarAlteracoesHiper,
+} from "../integrations/hiper/hiper-sync.client.js";
+
 export class SyncService {
   private repository = new SyncRepository();
   private lockRepository = new SyncLockRepository();
@@ -50,115 +54,144 @@ async executar() {
 }
 
 
-  private async executarSincronizacao() {
-    const chave = process.env.HIPER_CHAVE_SEGURANCA;
 
-    if (!chave) {
-      throw new Error("Chave do Hiper não configurada.");
-    }
+private async executarSincronizacao() {
+  const chave = process.env.HIPER_CHAVE_SEGURANCA;
 
-    console.log("[1/5] Iniciando sincronização...");
+  if (!chave) {
+    throw new Error("Chave do Hiper não configurada.");
+  }
 
-    const registro = await this.repository.iniciar();
+  const registro = await this.repository.iniciar();
 
-    try {
-      console.log("[2/5] Consultando Hiper...");
+  try {
+    // 1. Consultar último ponto confirmado
+    const pontoSalvo = await this.repository.buscarPonto();
+    const pontoInicial = pontoSalvo ?? 0;
 
-      const token = await gerarToken(chave);
-      const resposta = await consultarProdutos(token);
-      const produtos = localizarProdutos(resposta);
+    const tipo = pontoSalvo === null
+      ? "completa inicial"
+      : "incremental";
 
-      if (!produtos || produtos.length === 0) {
-        throw new Error(
-          "Hiper não retornou produtos válidos."
-        );
-      }
+    console.log(
+      `Sincronização ${tipo} — ponto ${pontoInicial}`
+    );
 
-      console.log(
-        `Produtos recebidos: ${produtos.length}`
-      );
+    // 2. Consultar somente alterações
+    const lote = await buscarAlteracoesHiper(
+      chave,
+      pontoInicial
+    );
 
-      console.log("[3/5] Normalizando iPhones...");
-
-      const resultado = montarCatalogo(produtos);
-
-      const unidades = resultado.grupos.flatMap(
-        (grupo) => grupo.unidades
-      );
-
-      // IDs informados explicitamente pelo Hiper.
-      const idsRecebidos = new Set(
-        produtos
-          .map((produto) => produto.id)
-          .filter(
-            (id): id is string =>
-              typeof id === "string" && id.length > 0
-          )
-      );
-
-      const idsDisponiveis = new Set(
-        unidades.map((unidade) => unidade.hiperId)
-      );
-
-      console.log("[4/5] Gravando produtos no MySQL...");
-
-      const atualizados =
-        await this.repository.salvarUnidades(unidades);
-
-      // Não indisponibiliza produtos ausentes
-      // da resposta, pois ela pode ser parcial.
-      
-const idsIndisponiveis = produtos
-  .filter((produto) => {
-    if (!produto.id || idsDisponiveis.has(produto.id)) {
-      return false;
-    }
-
-    // Apenas condições explícitas do Hiper.
-    const estoqueZerado =
-      typeof produto.quantidadeEmEstoque === "number" &&
-      Number.isFinite(produto.quantidadeEmEstoque) &&
-      produto.quantidadeEmEstoque <= 0;
-
-    const inativo = produto.ativo === false;
-    const removido = produto.removido === true;
-
-    return estoqueZerado || inativo || removido;
-  })
-  .map((produto) => produto.id)
-  .filter((id): id is string => typeof id === "string");
-
-
-      console.log("[5/5] Atualizando indisponíveis...");
-
-      const indisponibilizados =
-        await this.repository.indisponibilizar(
-          idsIndisponiveis
-        );
-
+    if (lote.semAlteracoes) {
       await this.repository.concluir(
         registro.id,
-        produtos.length,
-        unidades.length,
-        `Atualizados: ${atualizados}. ` +
-        `Indisponibilizados: ${indisponibilizados}.`
+        0,
+        0,
+        "Nenhuma alteração encontrada."
       );
 
       return {
-        produtosRecebidos: produtos.length,
-        iphonesAtualizados: atualizados,
-        indisponibilizados,
-        gruposVisuais: resultado.grupos.length,
-        unidadesDisponiveis:
-          resultado.diagnostico.unidadesDisponiveis,
+        tipo,
+        pontoAnterior: pontoInicial,
+        pontoAtual: pontoInicial,
+        produtosRecebidos: 0,
+        iphonesAtualizados: 0,
+        indisponibilizados: 0,
+        semAlteracoes: true,
       };
-
-    } catch (erro) {
-      await this.repository
-        .registrarErro(registro.id)
-        .catch(() => {});
-
-      throw erro;
     }
+
+    // 3. Validar estrutura
+    const produtos = localizarProdutos({
+      produtos: lote.produtos,
+    });
+
+    if (!produtos) {
+      throw new Error(
+        "Formato dos produtos não reconhecido."
+      );
+    }
+
+    console.log(
+      `Alterações recebidas: ${produtos.length}`
+    );
+
+    // 4. Normalizar registros disponíveis
+    const resultado = montarCatalogo(produtos);
+
+    const unidades = resultado.grupos.flatMap(
+      (grupo) => grupo.unidades
+    );
+
+    // 5. Identificar apenas indisponibilidades explícitas
+    const idsDisponiveis = new Set(
+      unidades.map((u) => u.hiperId)
+    );
+
+    const idsIndisponiveis = produtos
+      .filter((produto) => {
+        if (
+          !produto.id ||
+          idsDisponiveis.has(produto.id)
+        ) {
+          return false;
+        }
+
+        const estoqueZerado =
+          typeof produto.quantidadeEmEstoque === "number" &&
+          Number.isFinite(produto.quantidadeEmEstoque) &&
+          produto.quantidadeEmEstoque <= 0;
+
+        return (
+          estoqueZerado ||
+          produto.ativo === false ||
+          produto.removido === true
+        );
+      })
+      .map((produto) => produto.id)
+      .filter(
+        (id): id is string => typeof id === "string"
+      );
+
+    // 6. Gravar alterações
+    const atualizados =
+      await this.repository.salvarUnidades(unidades);
+
+    const indisponibilizados =
+      await this.repository.indisponibilizar(
+        [...new Set(idsIndisponiveis)]
+      );
+
+    // 7. Avançar somente após gravar os produtos
+    await this.repository.salvarPonto(lote.ponto);
+
+    // 8. Registrar conclusão
+    await this.repository.concluir(
+      registro.id,
+      produtos.length,
+      unidades.length,
+      `Sincronização ${tipo}. ` +
+      `Ponto: ${pontoInicial} -> ${lote.ponto}.`
+    );
+
+    return {
+      tipo,
+      pontoAnterior: pontoInicial,
+      pontoAtual: lote.ponto,
+      produtosRecebidos: produtos.length,
+      iphonesAtualizados: atualizados,
+      indisponibilizados,
+      semAlteracoes: false,
+    };
+
+  } catch (erro) {
+    await this.repository
+      .registrarErro(registro.id)
+      .catch(() => {});
+
+    throw erro;
   }
+}
+
 }

@@ -47,3 +47,9 @@ model SyncLock {
   token     String?  @db.VarChar(36)
   expiraEm  DateTime @default(now())
 }
+
+model SyncCursor {
+  id          Int      @id
+  ponto       BigInt   @default(0)
+  atualizadoEm DateTime @updatedAt
+}

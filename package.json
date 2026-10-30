@@ -16,7 +16,8 @@
     "catalogo:test": "tsx src/scripts/test-catalog.ts",
     "hiper:test": "tsx src/scripts/test-hiper.ts",
     "db:test": "tsx src/scripts/test-db.ts",
-    "sync:catalogo": "tsx src/scripts/sync-catalog.ts"
+    "sync:catalogo": "tsx src/scripts/sync-catalog.ts",
+    "sync:point:test": "tsx src/scripts/test-sync-point.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",

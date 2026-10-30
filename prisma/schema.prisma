@@ -41,3 +41,9 @@ model Sincronizacao {
   produtosValidos   Int       @default(0)
   mensagem          String?   @db.Text
 }
+
+model SyncLock {
+  id        Int      @id
+  token     String?  @db.VarChar(36)
+  expiraEm  DateTime @default(now())
+}

@@ -3,55 +3,68 @@ import "dotenv/config";
 
 import Fastify from "fastify";
 
+import { catalogRoutes } from "./routes/catalog.routes.js";
+
 import {
-  obterCatalogo,
-} from "./modules/catalog/catalog.service.js";
+  conectarBanco,
+  desconectarBanco,
+} from "./config/database.js";
 
 const app = Fastify({
   logger: true,
 });
 
-// Verificar funcionamento da API
+// Verificação de funcionamento
 app.get("/health", async () => {
   return {
     status: "ok",
     projeto: "Sunset Importados",
-    versao: "0.2.0",
+    versao: "0.3.0",
   };
 });
 
-// Catálogo público de iPhones
-app.get("/api/catalogo", async (request, reply) => {
-  try {
-    const catalogo = await obterCatalogo();
-
-    // Evita cache adicional no navegador
-    reply.header("Cache-Control", "no-store");
-
-    return reply.send(catalogo);
-
-  } catch {
-    request.log.error(
-      "Falha ao consultar o catálogo no Hiper."
-    );
-
-    return reply.code(503).send({
-      erro: "CATALOGO_INDISPONIVEL",
-      mensagem:
-        "Não foi possível atualizar o catálogo neste momento.",
-    });
-  }
+// Registrar rotas do catálogo
+app.register(catalogRoutes, {
+  prefix: "/api",
 });
 
-const port = Number(process.env.PORT ?? 3000);
+const PORT = Number(
+  process.env.PORT ?? 3000
+);
 
-try {
-  await app.listen({
-    port,
-    host: "0.0.0.0",
-  });
+async function iniciarServidor() {
+  try {
+    await conectarBanco();
 
-} catch (erro) {
-  app.log.error(erro);
-  process.exit(1);
+    await app.listen({
+      port: PORT,
+      host: "0.0.0.0",
+    });
+
+    console.log(
+      `API rodando na porta ${PORT}`
+    );
+
+  } catch (erro) {
+    app.log.error(erro);
+
+    await desconectarBanco();
+
+    process.exit(1);
+  }
 }
+
+async function encerrarServidor() {
+  await app.close();
+  await desconectarBanco();
+}
+
+process.on("SIGINT", () => {
+  void encerrarServidor();
+});
+
+process.on("SIGTERM", () => {
+  void encerrarServidor();
+});
+
+void iniciarServidor();

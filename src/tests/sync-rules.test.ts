@@ -35,7 +35,7 @@ test("mantém iPhone disponível com estoque positivo", () => {
 
   assert.equal(plano.unidades.length, 1);
   assert.equal(plano.unidades[0]?.quantidade, 1);
-  assert.deepEqual(plano.idsIndisponiveis, []);
+  assert.deepEqual(plano.idsCadastroInativos, []);
 });
 
 test("reconhece alteração de preço", () => {
@@ -56,19 +56,30 @@ test("reconhece alteração de quantidade", () => {
   assert.equal(plano.unidades[0]?.quantidade, 3);
 });
 
-test("marca estoque zerado como indisponível", () => {
+
+test("estoque zerado não desativa cadastro", () => {
   const plano = prepararSincronizacao([
     produto("iphone-1", {
       quantidadeEmEstoque: 0,
     }),
   ]);
 
+  // Não há unidade disponível para publicação.
   assert.equal(plano.unidades.length, 0);
+
+  // Estoque zerado não significa cadastro inativo.
   assert.deepEqual(
-    plano.idsIndisponiveis,
+    plano.idsCadastroInativos,
+    []
+  );
+
+  // O cadastro continua ativo no Hiper.
+  assert.deepEqual(
+    plano.idsCadastroAtivos,
     ["iphone-1"]
   );
 });
+
 
 test("marca produto desativado como indisponível", () => {
   const plano = prepararSincronizacao([
@@ -76,7 +87,7 @@ test("marca produto desativado como indisponível", () => {
   ]);
 
   assert.deepEqual(
-    plano.idsIndisponiveis,
+    plano.idsCadastroInativos,
     ["iphone-1"]
   );
 });
@@ -87,7 +98,7 @@ test("marca produto removido como indisponível", () => {
   ]);
 
   assert.deepEqual(
-    plano.idsIndisponiveis,
+    plano.idsCadastroInativos,
     ["iphone-1"]
   );
 });
@@ -100,7 +111,7 @@ test("permite reativação quando o estoque volta", () => {
   ]);
 
   assert.equal(plano.unidades.length, 1);
-  assert.deepEqual(plano.idsIndisponiveis, []);
+  assert.deepEqual(plano.idsCadastroInativos, []);
 });
 
 test("não indisponibiliza produtos ausentes do lote", () => {
@@ -112,7 +123,7 @@ test("não indisponibiliza produtos ausentes do lote", () => {
   assert.equal(plano.unidades[0]?.hiperId, "iphone-2");
 
   assert.equal(
-    plano.idsIndisponiveis.includes("iphone-1"),
+    plano.idsCadastroInativos.includes("iphone-1"),
     false
   );
 });
@@ -126,7 +137,7 @@ test("não trata cadastro incompleto como vendido", () => {
   ]);
 
   assert.equal(plano.unidades.length, 0);
-  assert.deepEqual(plano.idsIndisponiveis, []);
+  assert.deepEqual(plano.idsCadastroInativos, []);
 });
 
 test("exclui acessórios do catálogo", () => {

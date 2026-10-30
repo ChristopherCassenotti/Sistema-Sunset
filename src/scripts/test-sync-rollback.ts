@@ -73,7 +73,8 @@ try {
     pontoNovo: pontoAnterior + 1,
     produtosRecebidos: 1,
     unidades: [],
-    idsIndisponiveis: [iphone.hiperId],
+    idsCadastroInativos: [iphone.hiperId],
+idsCadastroAtivos: [],
     tipo: "teste rollback",
   });
 } catch (erro) {

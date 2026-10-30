@@ -28,7 +28,10 @@
     "sync:stock:match": "tsx src/scripts/test-stock-match.ts",
     "sync:stock:delta": "tsx src/scripts/test-stock-delta.ts",
     "sync:stock:client:test": "tsx src/scripts/test-stock-client.ts",
-    "sync:stock:service:test": "tsx src/scripts/test-stock-service.ts"
+    "sync:stock:service:test": "tsx src/scripts/test-stock-service.ts",
+    "sync:stock": "tsx src/scripts/sync-stock.ts",
+    "sync:stock:audit": "tsx src/scripts/check-stock-reconciliation.ts",
+    "sync:availability:test": "tsx src/scripts/check-catalog-availability.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",

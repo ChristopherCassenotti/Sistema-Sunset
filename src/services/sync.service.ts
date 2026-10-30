@@ -206,7 +206,7 @@ async executar() {
       );
 
       console.log(
-        `Indisponibilidades: ${plano.idsIndisponiveis.length}`
+        `Indisponibilidades: ${plano.idsCadastroInativos.length}`
       );
 
       // 6. Aplicar tudo na mesma transação.
@@ -237,7 +237,8 @@ const resultado =
     pontoNovo: lote.ponto,
     produtosRecebidos: produtos.length,
     unidades: plano.unidades,
-    idsIndisponiveis: plano.idsIndisponiveis,
+    idsCadastroInativos: plano.idsCadastroInativos,
+idsCadastroAtivos: plano.idsCadastroAtivos,
     tipo,
   });
 

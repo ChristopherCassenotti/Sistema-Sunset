@@ -10,7 +10,8 @@ import {
 
 export type PlanoSincronizacao = {
   unidades: UnidadeIphone[];
-  idsIndisponiveis: string[];
+  idsCadastroInativos: string[];
+  idsCadastroAtivos: string[];
   gruposVisuais: number;
 };
 
@@ -23,41 +24,40 @@ export function prepararSincronizacao(
     (grupo) => grupo.unidades
   );
 
-  const idsDisponiveis = new Set(
-    unidades.map((unidade) => unidade.hiperId)
-  );
+  const idsCadastroInativos = new Set<string>();
+  const idsCadastroAtivos = new Set<string>();
 
-  const idsIndisponiveis = produtos
-    .filter((produto) => {
-      if (
-        !produto.id ||
-        idsDisponiveis.has(produto.id)
-      ) {
-        return false;
-      }
+  for (const produto of produtos) {
+    if (
+      typeof produto.id !== "string" ||
+      !produto.id
+    ) {
+      continue;
+    }
 
-      const saldo = produto.quantidadeEmEstoque;
+    // Inatividade cadastral explícita.
+    if (
+      produto.ativo === false ||
+      produto.removido === true
+    ) {
+      idsCadastroInativos.add(produto.id);
+      continue;
+    }
 
-      const estoqueZerado =
-        typeof saldo === "number" &&
-        Number.isFinite(saldo) &&
-        saldo <= 0;
-
-      return (
-        estoqueZerado ||
-        produto.ativo === false ||
-        produto.removido === true
-      );
-    })
-    .map((produto) => produto.id)
-    .filter(
-      (id): id is string => typeof id === "string"
-    );
+    // Somente uma confirmação explícita de
+    // cadastro ativo permite reativação.
+if (produto.ativo === true) {
+  idsCadastroAtivos.add(produto.id);
+}
+  }
 
   return {
     unidades,
-    idsIndisponiveis: [
-      ...new Set(idsIndisponiveis)
+    idsCadastroInativos: [
+      ...idsCadastroInativos,
+    ],
+    idsCadastroAtivos: [
+      ...idsCadastroAtivos,
     ],
     gruposVisuais: resultado.grupos.length,
   };

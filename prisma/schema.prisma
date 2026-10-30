@@ -27,6 +27,8 @@ model Iphone {
   atualizadoEm   DateTime @updatedAt
   criadoEm       DateTime @default(now())
 
+  ativoCadastro Boolean @default(true)
+
   @@index([modelo, armazenamento, cor])
   @@index([disponivel, condicao])
 }
@@ -61,3 +63,4 @@ model StockCursor {
   localDeEstoqueId   String?  @db.VarChar(100)
   atualizadoEm      DateTime @updatedAt
 }
+

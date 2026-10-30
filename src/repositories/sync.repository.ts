@@ -12,7 +12,8 @@ type AplicarLoteParams = {
   pontoNovo: number;
   produtosRecebidos: number;
   unidades: UnidadeIphone[];
-  idsIndisponiveis: string[];
+  idsCadastroInativos: string[];
+  idsCadastroAtivos: string[];
   tipo: string;
 };
 
@@ -55,7 +56,8 @@ export class SyncRepository {
       pontoNovo,
       produtosRecebidos,
       unidades,
-      idsIndisponiveis,
+      idsCadastroInativos,
+      idsCadastroAtivos,
       tipo,
     } = params;
 
@@ -77,9 +79,6 @@ export class SyncRepository {
       );
     }
 
-    const idsUnicos = [
-      ...new Set(idsIndisponiveis),
-    ];
 
 
 return prisma.$transaction(
@@ -133,58 +132,129 @@ return prisma.$transaction(
         let atualizados = 0;
 
         for (const unidade of unidades) {
-          const dados = {
-            codigo: unidade.codigo,
-            nomeOriginal: unidade.nomeOriginal,
-            modelo: unidade.modelo,
-            armazenamento: unidade.armazenamento,
-            cor: unidade.cor,
-            condicao: unidade.condicao,
-            bateria: unidade.bateria,
-            preco: unidade.preco,
-            quantidade: unidade.quantidade,
-            disponivel: unidade.quantidade > 0,
-          };
 
-          await tx.iphone.upsert({
-            where: {
-              hiperId: unidade.hiperId,
-            },
-            create: {
-              hiperId: unidade.hiperId,
-              ...dados,
-            },
-            update: dados,
-          });
+const dadosCadastrais = {
+  codigo: unidade.codigo,
+  nomeOriginal: unidade.nomeOriginal,
+  modelo: unidade.modelo,
+  armazenamento: unidade.armazenamento,
+  cor: unidade.cor,
+  condicao: unidade.condicao,
+  bateria: unidade.bateria,
+  preco: unidade.preco,
+};
+
+
+
+await tx.iphone.upsert({
+  where: {
+    hiperId: unidade.hiperId,
+  },
+  create: {
+    hiperId: unidade.hiperId,
+    ...dadosCadastrais,
+
+    // Cadastro novo começa indisponível
+    // até receber o saldo confirmado pelo estoque.
+    quantidade: 0,
+    disponivel: false,
+  },
+  update: dadosCadastrais,
+});
+
 
           atualizados++;
         }
 
-        // 3. Desativar somente IDs explicitamente
-        // recebidos como indisponíveis.
-        let indisponibilizados = 0;
 
-        for (
-          let i = 0;
-          i < idsUnicos.length;
-          i += 100
-        ) {
-          const ids = idsUnicos.slice(i, i + 100);
+// 3. Atualizar situação cadastral,
+// sem sobrescrever as quantidades de estoque.
 
-          const resultado =
-            await tx.iphone.updateMany({
-              where: {
-                hiperId: { in: ids },
-                disponivel: true,
-              },
-              data: {
-                disponivel: false,
-                quantidade: 0,
-              },
-            });
+let indisponibilizados = 0;
 
-          indisponibilizados += resultado.count;
-        }
+const idsInativos: string[] = [
+  ...new Set<string>(idsCadastroInativos),
+];
+
+const idsAtivos: string[] = [
+  ...new Set<string>(idsCadastroAtivos),
+];
+
+const conflito = idsAtivos.some(
+  (id) => idsInativos.includes(id)
+);
+
+if (conflito) {
+  throw new Error(
+    "Cadastro com estados contraditórios no lote."
+  );
+}
+
+// Desativar somente cadastros explicitamente
+// inativos ou removidos.
+for (let i = 0; i < idsInativos.length; i += 100) {
+  const lote = idsInativos.slice(i, i + 100);
+
+  const resultado = await tx.iphone.updateMany({
+    where: {
+      hiperId: { in: lote },
+      disponivel: true,
+    },
+    data: {
+      ativoCadastro: false,
+      disponivel: false,
+    },
+  });
+
+  indisponibilizados += resultado.count;
+
+  await tx.iphone.updateMany({
+    where: {
+      hiperId: { in: lote },
+      ativoCadastro: true,
+    },
+    data: {
+      ativoCadastro: false,
+      disponivel: false,
+    },
+  });
+}
+
+// Reativar somente cadastros confirmados
+// como ativos pelo Hiper.
+for (let i = 0; i < idsAtivos.length; i += 100) {
+  const lote = idsAtivos.slice(i, i + 100);
+
+  await tx.iphone.updateMany({
+    where: {
+      hiperId: { in: lote },
+    },
+    data: {
+      ativoCadastro: true,
+    },
+  });
+
+  // Usa o saldo já confirmado pelo StockService.
+  await tx.iphone.updateMany({
+    where: {
+      hiperId: { in: lote },
+      quantidade: { gt: 0 },
+    },
+    data: {
+      disponivel: true,
+    },
+  });
+
+  await tx.iphone.updateMany({
+    where: {
+      hiperId: { in: lote },
+      quantidade: { lte: 0 },
+    },
+    data: {
+      disponivel: false,
+    },
+  });
+}
 
         // 4. Salvar novo ponto apenas depois dos
         // produtos e indisponibilidades.

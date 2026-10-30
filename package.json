@@ -14,14 +14,18 @@
     "check": "tsc --noEmit",
     "test": "tsx --test src/tests/*.test.ts",
     "catalogo:test": "tsx src/scripts/test-catalog.ts",
-    "hiper:test": "tsx src/scripts/test-hiper.ts"
+    "hiper:test": "tsx src/scripts/test-hiper.ts",
+    "db:test": "tsx src/scripts/test-db.ts",
+    "sync:catalogo": "tsx src/scripts/sync-catalog.ts"
   },
   "dependencies": {
+    "@prisma/client": "^6.19.3",
     "dotenv": "^16.6.0",
     "fastify": "^5.5.0"
   },
   "devDependencies": {
     "@types/node": "^22.17.0",
+    "prisma": "^6.19.3",
     "tsx": "^4.20.3",
     "typescript": "^5.9.2"
   }

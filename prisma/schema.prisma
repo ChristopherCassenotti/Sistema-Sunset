@@ -1,0 +1,43 @@
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model Iphone {
+  id             Int      @id @default(autoincrement())
+  hiperId        String   @unique @db.VarChar(36)
+  codigo         String?  @db.VarChar(50)
+  nomeOriginal   String   @db.VarChar(300)
+
+  modelo         String   @db.VarChar(100)
+  armazenamento  String   @db.VarChar(20)
+  cor            String   @db.VarChar(100)
+  condicao       String   @db.VarChar(20)
+
+  bateria        Int?
+  preco          Decimal  @db.Decimal(12, 2)
+  quantidade     Int      @default(0)
+
+  disponivel     Boolean  @default(true)
+  atualizadoEm   DateTime @updatedAt
+  criadoEm       DateTime @default(now())
+
+  @@index([modelo, armazenamento, cor])
+  @@index([disponivel, condicao])
+}
+
+model Sincronizacao {
+  id                Int       @id @default(autoincrement())
+  status            String    @db.VarChar(30)
+  iniciadaEm        DateTime  @default(now())
+  finalizadaEm      DateTime?
+
+  produtosRecebidos Int       @default(0)
+  produtosValidos   Int       @default(0)
+  mensagem          String?   @db.Text
+}

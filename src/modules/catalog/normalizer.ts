@@ -46,10 +46,7 @@ function chaveNormalizada(texto: string): string {
 // Extrai os dados que estão no nome do produto
 function interpretarNome(nome: string): Extracao | null {
 
-  // Exemplo:
-  // IPHONE 17 PRO MAX, DEEP BLUE, 256GB (NOVO) - 025M
-
-  const modelo = /^\s*iphone\s+(?:\d{1,2}[se]?|xr|xs|x|se)(?:\s+(?:pro\s+max|pro|plus|mini|air|max))?\b/i.exec(nome);
+  const modelo = /^\s*iphone\s+(?:\d{1,2}[se]?|xr|xs|x|se|air)(?:\s+(?:pro\s+max|pro|plus|mini|air|max))?\b/i.exec(nome);
 
   if (!modelo) return null;
 

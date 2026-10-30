@@ -53,3 +53,11 @@ model SyncCursor {
   ponto       BigInt   @default(0)
   atualizadoEm DateTime @updatedAt
 }
+
+
+model StockCursor {
+  id                Int      @id
+  ponto             BigInt   @default(0)
+  localDeEstoqueId   String?  @db.VarChar(100)
+  atualizadoEm      DateTime @updatedAt
+}

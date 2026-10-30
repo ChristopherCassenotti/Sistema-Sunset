@@ -18,7 +18,17 @@
     "db:test": "tsx src/scripts/test-db.ts",
     "sync:catalogo": "tsx src/scripts/sync-catalog.ts",
     "sync:point:test": "tsx src/scripts/test-sync-point.ts",
-    "sync:delta:test": "tsx src/scripts/test-sync-delta.ts"
+    "sync:delta:test": "tsx src/scripts/test-sync-delta.ts",
+    "sync:status": "tsx src/scripts/check-sync-state.ts",
+    "sync:rollback:test": "tsx src/scripts/test-sync-rollback.ts",
+    "sync:concurrency:test": "tsx src/scripts/test-sync-concurrency.ts",
+    "sync:lock:status": "tsx src/scripts/check-sync-lock.ts",
+    "sync:renewal:test": "tsx src/scripts/test-sync-renewal.ts",
+    "sync:stock:test": "tsx src/scripts/test-hiper-stock.ts",
+    "sync:stock:match": "tsx src/scripts/test-stock-match.ts",
+    "sync:stock:delta": "tsx src/scripts/test-stock-delta.ts",
+    "sync:stock:client:test": "tsx src/scripts/test-stock-client.ts",
+    "sync:stock:service:test": "tsx src/scripts/test-stock-service.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",

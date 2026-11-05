@@ -136,6 +136,26 @@ export class StockRepository {
           }
 
 
+
+const quantidadeReservada =
+  item.quantidadeEmEstoqueReservado;
+
+if (
+  !Number.isSafeInteger(quantidadeReservada) ||
+  quantidadeReservada < 0
+) {
+  throw new Error(
+    "Quantidade reservada inválida."
+  );
+}
+
+const quantidadeLivre = Math.max(
+  0,
+  quantidade - quantidadeReservada
+);
+
+// O próprio MySQL identifica quais
+// cadastros estão ativos.
 const resultado = await tx.iphone.updateMany({
   where: {
     hiperId: item.produtoId,
@@ -143,12 +163,12 @@ const resultado = await tx.iphone.updateMany({
   },
   data: {
     quantidade,
-    disponivel: quantidade > 0,
+    quantidadeReservada,
+    disponivel: quantidadeLivre > 0,
   },
 });
 
-// Cadastros inativos podem receber seu saldo,
-// mas não devem voltar a aparecer no catálogo.
+// Cadastros inativos continuam ocultos.
 await tx.iphone.updateMany({
   where: {
     hiperId: item.produtoId,
@@ -156,6 +176,7 @@ await tx.iphone.updateMany({
   },
   data: {
     quantidade,
+    quantidadeReservada,
     disponivel: false,
   },
 });
@@ -163,9 +184,9 @@ await tx.iphone.updateMany({
 
           atualizados += resultado.count;
 
-          if (quantidade === 0) {
-            zerados += resultado.count;
-          }
+if (quantidadeLivre === 0) {
+  zerados += resultado.count;
+}
         }
 
         // Produtos e checkpoint na mesma transação.
@@ -219,25 +240,37 @@ async reconciliarCompleto(params: {
     );
   }
 
-  const saldos = new Map<string, number>();
+  const saldos = new Map<
+  string,
+  {
+    quantidade: number;
+    reservada: number;
+  }
+>();
 
-  for (const item of registros) {
-    if (
-      !item.produtoId ||
-      !Number.isSafeInteger(item.quantidadeEmEstoque) ||
-      item.quantidadeEmEstoque < 0 ||
-      saldos.has(item.produtoId)
-    ) {
-      throw new Error(
-        "Registro duplicado ou saldo inválido."
-      );
-    }
 
-    saldos.set(
-      item.produtoId,
-      item.quantidadeEmEstoque
+for (const item of registros) {
+  if (
+    !item.produtoId ||
+    !Number.isSafeInteger(item.quantidadeEmEstoque) ||
+    item.quantidadeEmEstoque < 0 ||
+    !Number.isSafeInteger(
+      item.quantidadeEmEstoqueReservado
+    ) ||
+    item.quantidadeEmEstoqueReservado < 0 ||
+    saldos.has(item.produtoId)
+  ) {
+    throw new Error(
+      "Registro duplicado ou saldo inválido."
     );
   }
+
+  saldos.set(item.produtoId, {
+    quantidade: item.quantidadeEmEstoque,
+    reservada: item.quantidadeEmEstoqueReservado,
+  });
+}
+
 
   return prisma.$transaction(
     async (tx) => {
@@ -280,45 +313,57 @@ async reconciliarCompleto(params: {
       }
 
       const iphones = await tx.iphone.findMany({
-        select: {
-          hiperId: true,
-          quantidade: true,
-          disponivel: true,
-          ativoCadastro: true,
-        },
+select: {
+  hiperId: true,
+  quantidade: true,
+  quantidadeReservada: true,
+  disponivel: true,
+  ativoCadastro: true,
+},
       });
 
       let atualizados = 0;
       let semRegistro = 0;
 
       for (const iphone of iphones) {
-        const saldo = saldos.get(iphone.hiperId);
 
-        // Não presumir estoque zero se o
-        // Hiper não retornou o produto.
-        if (saldo === undefined) {
-          semRegistro++;
-          continue;
-        }
+const saldo = saldos.get(iphone.hiperId);
 
-        const disponivel = saldo > 0 && iphone.ativoCadastro;
+// Não alterar produtos ausentes da resposta.
+if (!saldo) {
+  semRegistro++;
+  continue;
+}
 
-        if (
-          iphone.quantidade === saldo &&
-          iphone.disponivel === disponivel
-        ) {
-          continue;
-        }
+const quantidadeLivre = Math.max(
+  0,
+  saldo.quantidade - saldo.reservada
+);
 
-        await tx.iphone.update({
-          where: { hiperId: iphone.hiperId },
-          data: {
-            quantidade: saldo,
-            disponivel,
-          },
-        });
+const disponivel =
+  iphone.ativoCadastro && quantidadeLivre > 0;
 
-        atualizados++;
+if (
+  iphone.quantidade === saldo.quantidade &&
+  iphone.quantidadeReservada === saldo.reservada &&
+  iphone.disponivel === disponivel
+) {
+  continue;
+}
+
+await tx.iphone.update({
+  where: {
+    hiperId: iphone.hiperId,
+  },
+  data: {
+    quantidade: saldo.quantidade,
+    quantidadeReservada: saldo.reservada,
+    disponivel,
+  },
+});
+
+atualizados++;
+
       }
 
       // Reconciliação NÃO avança StockCursor.

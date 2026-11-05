@@ -1,41 +1,52 @@
 
 import { CatalogRepository } from "../repositories/catalog.repository.js";
-
+import {
+  ImageRepository,
+  chaveImagem,
+} from "../repositories/image.repository.js";
 import type {
   ProdutoCatalogo,
   RespostaCatalogo,
 } from "../models/catalog.model.js";
 
-function normalizar(texto: string): string {
-  return texto
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toUpperCase()
-    .replace(/[^A-Z0-9]+/g, " ")
-    .trim();
-}
+import { normalizarCor } from "../utils/normalizar-cor.js";
 
 export class CatalogService {
   private repository = new CatalogRepository();
-
+  private imageRepository = new ImageRepository();
+  
   async listar(): Promise<RespostaCatalogo> {
     const iphones =
       await this.repository.buscarDisponiveis();
 
-    const grupos =
-      new Map<string, ProdutoCatalogo>();
+    const grupos = new Map<string, ProdutoCatalogo>();
 
     for (const iphone of iphones) {
+      // Apenas unidades livres para venda.
+      const quantidadeLivre = Math.max(
+        0,
+        iphone.quantidade - iphone.quantidadeReservada
+      );
+
+      if (quantidadeLivre === 0) {
+        continue;
+      }
+
+      const corPadronizada = normalizarCor(iphone.cor);
+
       const chave = [
-        iphone.modelo,
-        iphone.armazenamento,
-        iphone.cor,
-        iphone.condicao,
-      ]
-        .map(normalizar)
-        .join("|");
+        iphone.modelo.trim().toUpperCase(),
+        iphone.armazenamento.trim().toUpperCase(),
+        corPadronizada,
+        iphone.condicao.trim().toUpperCase(),
+      ].join("|");
 
       const preco = Number(iphone.preco);
+
+      // Não publicar preços inválidos.
+      if (!Number.isFinite(preco) || preco <= 0) {
+        continue;
+      }
 
       let grupo = grupos.get(chave);
 
@@ -46,12 +57,12 @@ export class CatalogService {
           nome: [
             iphone.modelo,
             iphone.armazenamento,
-            iphone.cor,
+            corPadronizada,
           ].join(" "),
 
           modelo: iphone.modelo,
           armazenamento: iphone.armazenamento,
-          cor: iphone.cor,
+          cor: corPadronizada,
           condicao: iphone.condicao,
 
           precoAVista: preco,
@@ -61,13 +72,13 @@ export class CatalogService {
           disponivel: true,
 
           opcoes: [],
+          imagens: [],
         };
 
         grupos.set(chave, grupo);
       }
 
-      grupo.quantidadeDisponivel +=
-        iphone.quantidade;
+      grupo.quantidadeDisponivel += quantidadeLivre;
 
       grupo.precoAVista = Math.min(
         grupo.precoAVista,
@@ -82,9 +93,27 @@ export class CatalogService {
       grupo.opcoes.push({
         preco,
         bateria: iphone.bateria,
-        quantidade: iphone.quantidade,
+        quantidade: quantidadeLivre,
       });
     }
+
+    
+const imagensPorProduto =
+  await this.imageRepository.buscarPorProdutos(
+    [...grupos.values()].map((grupo) => ({
+      modelo: grupo.modelo,
+      cor: grupo.cor,
+    }))
+  );
+
+for (const grupo of grupos.values()) {
+  const chave = chaveImagem(
+    grupo.modelo,
+    grupo.cor
+  );
+
+  grupo.imagens = imagensPorProduto.get(chave) ?? [];
+}
 
     const produtos = [...grupos.values()].sort(
       (a, b) =>
@@ -98,10 +127,7 @@ export class CatalogService {
           "pt-BR",
           { numeric: true }
         ) ||
-        a.cor.localeCompare(
-          b.cor,
-          "pt-BR"
-        )
+        a.cor.localeCompare(b.cor, "pt-BR")
     );
 
     const ultimaSincronizacao =

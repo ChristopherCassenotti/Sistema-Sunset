@@ -31,9 +31,16 @@
     "sync:stock:service:test": "tsx src/scripts/test-stock-service.ts",
     "sync:stock": "tsx src/scripts/sync-stock.ts",
     "sync:stock:audit": "tsx src/scripts/check-stock-reconciliation.ts",
-    "sync:availability:test": "tsx src/scripts/check-catalog-availability.ts"
+    "sync:availability:test": "tsx src/scripts/check-catalog-availability.ts",
+    "sync:transitions:test": "tsx src/scripts/test-availability-transitions.ts",
+    "catalog:filter:test": "tsx src/scripts/test-catalog-filter.ts",
+    "stock:reserved:test": "tsx src/scripts/check-reserved-stock.ts",
+    "sync:stock:reconcile": "tsx src/scripts/reconcile-stock.ts",
+    "images:check": "tsx src/scripts/import-iphone-images.ts",
+    "images:import": "tsx src/scripts/import-iphone-images.ts --aplicar"
   },
   "dependencies": {
+    "@fastify/static": "^10.1.10",
     "@prisma/client": "^6.19.3",
     "dotenv": "^16.6.0",
     "fastify": "^5.5.0"

@@ -17,6 +17,7 @@ export interface ProdutoCatalogo {
   quantidadeDisponivel: number;
   disponivel: boolean;
   opcoes: OpcaoCatalogo[];
+  imagens: string[];
 }
 
 export interface RespostaCatalogo {

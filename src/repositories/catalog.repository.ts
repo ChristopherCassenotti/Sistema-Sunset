@@ -6,12 +6,14 @@ export class CatalogRepository {
   async buscarDisponiveis() {
     return prisma.iphone.findMany({
       where: {
+        ativoCadastro: true,
         disponivel: true,
         quantidade: {
           gt: 0,
         },
       },
       select: {
+        hiperId: true,
         modelo: true,
         armazenamento: true,
         cor: true,
@@ -19,6 +21,7 @@ export class CatalogRepository {
         bateria: true,
         preco: true,
         quantidade: true,
+        quantidadeReservada: true,
       },
       orderBy: [
         { modelo: "asc" },

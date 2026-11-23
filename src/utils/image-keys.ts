@@ -68,9 +68,11 @@ export function corChaveImagem(
     "TITANIO AZUL": "AZUL",
     "TITANIO DESERTO": "DESERTO",
     "AZUL INTENSO": "AZUL",
+    "DEEP BLUE": "AZUL",
     "AZUL SIERRA": "AZUL",
     "AZUL PACIFICO": "AZUL",
     "ROXO PROFUNDO": "ROXO",
+    "ROXO PROFUNFO": "ROXO", // erro de digitação no cadastro do Hiper
     "PRETO ESPACIAL": "PRETO",
     "VERDE ALPINO": "VERDE",
     "VERDE MEIA NOITE": "VERDE",
@@ -81,6 +83,7 @@ export function corChaveImagem(
     "SPACE GREY": "CINZA",
     "CORAL": "LARANJA",
     "BORDO": "BORDO",
+    "BURGUNDY": "BORDO",
   };
 
   let chave =

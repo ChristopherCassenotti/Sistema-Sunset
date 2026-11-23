@@ -10,6 +10,14 @@ export async function catalogRoutes(
 ) {
   app.get(
     "/catalogo",
+    {
+      config: {
+        rateLimit: {
+          max: 120,
+          timeWindow: "1 minute",
+        },
+      },
+    },
     (request, reply) =>
       catalogController.listar(request, reply)
   );

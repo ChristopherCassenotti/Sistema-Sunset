@@ -40,3 +40,14 @@ test("remove diferenças de espaçamento", () => {
     "LARANJA CÓSMICO"
   );
 });
+
+test("unifica as variações de titânio branco", () => {
+  for (const cor of [
+    "White Titanium",
+    "TITANIO-BRANCO",
+    "Titânio Branco",
+    "Branco",
+  ]) {
+    assert.equal(normalizarCor(cor), "BRANCO");
+  }
+});

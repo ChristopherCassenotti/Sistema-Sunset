@@ -37,9 +37,13 @@
     "stock:reserved:test": "tsx src/scripts/check-reserved-stock.ts",
     "sync:stock:reconcile": "tsx src/scripts/reconcile-stock.ts",
     "images:check": "tsx src/scripts/import-iphone-images.ts",
-    "images:import": "tsx src/scripts/import-iphone-images.ts --aplicar"
+    "images:import": "tsx src/scripts/import-iphone-images.ts --aplicar",
+    "sync:all": "tsx src/scripts/sync-all.ts",
+    "sync:all:prod": "node dist/scripts/sync-all.js"
   },
   "dependencies": {
+    "@fastify/cors": "^11.4.1",
+    "@fastify/rate-limit": "^11.2.2",
     "@fastify/static": "^10.1.10",
     "@prisma/client": "^6.19.3",
     "dotenv": "^16.6.0",

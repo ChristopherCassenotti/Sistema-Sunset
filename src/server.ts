@@ -2,6 +2,10 @@
 import "dotenv/config";
 
 import Fastify from "fastify";
+import fastifyRateLimit from "@fastify/rate-limit";
+import fastifyStatic from "@fastify/static";
+import path from "node:path";
+import cors from "@fastify/cors";
 
 import { catalogRoutes } from "./routes/catalog.routes.js";
 
@@ -10,8 +14,48 @@ import {
   desconectarBanco,
 } from "./config/database.js";
 
+// Quantidade de proxies à frente da API. Sem isso, atrás de um proxy,
+// todos os visitantes pareceriam um só IP para o limite de requisições.
+const proxiesConfiaveis = Number(
+  process.env.TRUST_PROXY ?? 0
+);
+
+// Criar aplicação Fastify
 const app = Fastify({
   logger: true,
+  trustProxy: (_endereco, salto) =>
+    salto < proxiesConfiaveis,
+});
+
+app.register(cors, {
+  origin: [
+    "https://sunsetimportados.com.br",
+    "https://www.sunsetimportados.com.br",
+  ],
+  methods: ["GET", "OPTIONS"],
+});
+
+// Limite por IP, ativado rota a rota
+app.register(fastifyRateLimit, {
+  global: false,
+  errorResponseBuilder: (_request, contexto) => ({
+    statusCode: contexto.statusCode,
+    erro: "MUITAS_REQUISICOES",
+    mensagem:
+      "Muitas requisições. Tente novamente em instantes.",
+  }),
+});
+
+// Disponibilizar as imagens cadastradas
+app.register(fastifyStatic, {
+  root: path.resolve(
+    process.cwd(),
+    "uploads",
+    "iphones"
+  ),
+  prefix: "/uploads/iphones/",
+  decorateReply: false,
+  index: false,
 });
 
 // Verificação de funcionamento
@@ -44,7 +88,6 @@ async function iniciarServidor() {
     console.log(
       `API rodando na porta ${PORT}`
     );
-
   } catch (erro) {
     app.log.error(erro);
 

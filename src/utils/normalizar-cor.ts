@@ -16,6 +16,10 @@ export function normalizarCor(cor: string): string {
     "TITANIO NATURAL": "TITÂNIO NATURAL",
     "BLACK": "PRETO",
     "WHITE": "BRANCO",
+    "WHITE TITANIUM": "BRANCO",
+    "TITANIUM WHITE": "BRANCO",
+    "TITANIO BRANCO": "BRANCO",
+    "BRANCO TITANIO": "BRANCO",
   };
 
   return equivalencias[texto] ?? texto;

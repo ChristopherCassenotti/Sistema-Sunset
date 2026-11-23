@@ -5,8 +5,17 @@ import type {
 } from "fastify";
 
 import { CatalogService } from "../services/catalog.service.js";
+import { criarCacheCurto } from "../utils/cache-curto.js";
+
+const DURACAO_CACHE_MS = 30_000;
 
 const catalogService = new CatalogService();
+
+// Protege o MySQL: no máximo uma consulta do catálogo a cada 30 segundos.
+const obterCatalogo = criarCacheCurto(
+  () => catalogService.listar(),
+  DURACAO_CACHE_MS
+);
 
 export class CatalogController {
   async listar(
@@ -15,7 +24,7 @@ export class CatalogController {
   ) {
     try {
       const catalogo =
-        await catalogService.listar();
+        await obterCatalogo();
 
       return reply
         .header("Cache-Control", "no-store")

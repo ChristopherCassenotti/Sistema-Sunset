@@ -32,7 +32,10 @@ export class CatalogService {
         continue;
       }
 
-      const corPadronizada = normalizarCor(iphone.cor);
+      const corPadronizada = normalizarCor(
+        iphone.cor,
+        iphone.modelo
+      );
 
       const chave = [
         iphone.modelo.trim().toUpperCase(),

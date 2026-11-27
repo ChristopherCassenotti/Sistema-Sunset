@@ -52,7 +52,7 @@ export function corChaveImagem(
   cor: string
 ): string {
   const modeloKey = modeloChaveImagem(modelo);
-  const corNormalizada = limpar(normalizarCor(cor));
+  const corNormalizada = limpar(normalizarCor(cor, modelo));
 
   // Sinônimos gerais.
   const equivalencias: Record<string, string> = {
